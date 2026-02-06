@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard | Celeste</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;700;800&display=swap');
+        body { background: #000; color: #fff; font-family: 'Plus Jakarta Sans', sans-serif; }
+        .glass { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); backdrop-filter: blur(10px); }
+        input { background: rgba(255,255,255,0.05) !important; border: 1px solid rgba(255,255,255,0.1) !important; color: white !important; }
+        .hidden { display: none; }
+        .loader { width: 20px; height: 20px; border: 3px solid rgba(255,255,255,0.3); border-top: 3px solid #00ff40; border-radius: 50%; animation: spin 0.8s linear infinite; }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen p-6">
+
+    <!-- Login Card -->
+    <div id="login-card" class="glass w-full max-w-sm rounded-[30px] p-8">
+        <div class="flex items-center gap-3 mb-6">
+            <div class="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center text-black shadow-[0_0_15px_rgba(0,255,64,0.4)]"><i class="fas fa-lock"></i></div>
+            <h1 class="text-2xl font-black text-green-500 uppercase tracking-tighter">Admin Access</h1>
+        </div>
+        <div class="space-y-4">
+            <input type="text" id="user" placeholder="Username" class="w-full p-4 rounded-xl outline-none">
+            <input type="password" id="pass" placeholder="Password" class="w-full p-4 rounded-xl outline-none">
+            <button id="login-btn" onclick="handleLogin()" class="w-full bg-green-500 text-black font-black p-4 rounded-xl shadow-lg active:scale-95 transition">LOG IN</button>
+        </div>
+    </div>
+
+    <!-- Dashboard Card -->
+    <div id="dash-card" class="glass w-full max-w-lg rounded-[30px] p-8 hidden">
+        <div class="flex justify-between items-center mb-8">
+            <div>
+                <h1 class="text-xl font-black text-green-500 uppercase tracking-tight">Global Settings</h1>
+                <p class="text-[10px] text-gray-500 font-bold">CONTROL NIGERIA & REDIRECTS</p>
+            </div>
+            <div class="bg-green-500/10 text-green-500 text-[10px] font-bold px-3 py-1 rounded-full border border-green-500/20 uppercase">Live Control</div>
+        </div>
+        
+        <div class="space-y-5">
+            <!-- Nigeria Specific Section -->
+            <div class="p-4 rounded-2xl border border-white/5 bg-white/5">
+                <p class="text-[10px] font-black text-green-500 uppercase mb-4 tracking-widest"><i class="fas fa-flag mr-1"></i> Nigeria Account Details</p>
+                
+                <div class="space-y-4">
+                    <div>
+                        <label class="text-[9px] font-bold text-gray-500 uppercase tracking-widest ml-1">Bank Name</label>
+                        <input type="text" id="bank-in" class="w-full p-4 mt-1 rounded-xl outline-none text-sm" placeholder="e.g. Kuda Mfb">
+                    </div>
+                    <div>
+                        <label class="text-[9px] font-bold text-gray-500 uppercase tracking-widest ml-1">Account Number</label>
+                        <input type="text" id="num-in" class="w-full p-4 mt-1 rounded-xl outline-none text-sm" placeholder="e.g. 3003425249">
+                    </div>
+                    <div>
+                        <label class="text-[9px] font-bold text-gray-500 uppercase tracking-widest ml-1">Account Name</label>
+                        <input type="text" id="name-in" class="w-full p-4 mt-1 rounded-xl outline-none text-sm" placeholder="e.g. MORRISH M ENTERPRISES">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Global Redirect Section -->
+            <div class="p-4 rounded-2xl border border-white/5 bg-white/5">
+                <p class="text-[10px] font-black text-blue-400 uppercase mb-4 tracking-widest"><i class="fas fa-link mr-1"></i> Telegram Redirect URL</p>
+                <input type="text" id="link-in" class="w-full p-4 rounded-xl outline-none text-sm" placeholder="https://t.me/...">
+            </div>
+
+            <div class="pt-4">
+                <button onclick="handleUpdate()" id="up-btn" class="w-full bg-green-500 text-black font-black p-5 rounded-2xl transition hover:brightness-110 flex items-center justify-center gap-3">
+                    SAVE & UPDATE WEBSITE
+                </button>
+            </div>
+        </div>
+    </div>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+    // Your Firebase Config
+    const firebaseConfig = {
+        apiKey: "AIzaSyASDlQQMoXCeMZKs5O3KmO8zuFztt8rg2E",
+        authDomain: "celeste-web1.firebaseapp.com",
+        projectId: "celeste-web1",
+        storageBucket: "celeste-web1.firebasestorage.app",
+        messagingSenderId: "905722043319",
+        appId: "1:905722043319:web:83d032bf3608b8957b2632"
+    };
+    
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+    
+    // Using a single document to store these live values
+    const docRef = doc(db, "configs", "main");
+
+    window.handleLogin = () => {
+        const u = document.getElementById('user').value;
+        const p = document.getElementById('pass').value;
+        if(u === "admin" && p === "celeste2026") {
+            document.getElementById('login-card').classList.add('hidden');
+            document.getElementById('dash-card').classList.remove('hidden');
+            initDash();
+        } else {
+            alert("Invalid Credentials");
+        }
+    };
+
+    async function initDash() {
+        await signInAnonymously(auth);
+        const snap = await getDoc(docRef);
+        if(snap.exists()) {
+            const d = snap.data();
+            document.getElementById('bank-in').value = d.nigeriaBank || "";
+            document.getElementById('num-in').value = d.nigeriaNumber || "";
+            document.getElementById('name-in').value = d.nigeriaHolder || "";
+            document.getElementById('link-in').value = d.telegramLink || "";
+        }
+    }
+
+    window.handleUpdate = async () => {
+        const btn = document.getElementById('up-btn');
+        btn.innerHTML = `<div class="loader"></div> UPDATING...`;
+        btn.disabled = true;
+
+        try {
+            if(!auth.currentUser) await signInAnonymously(auth);
+            
+            await setDoc(docRef, {
+                nigeriaBank: document.getElementById('bank-in').value,
+                nigeriaNumber: document.getElementById('num-in').value,
+                nigeriaHolder: document.getElementById('name-in').value,
+                telegramLink: document.getElementById('link-in').value,
+                updatedAt: new Date().toISOString()
+            }, { merge: true });
+            
+            alert("Website Updated Successfully!");
+        } catch (e) {
+            alert("Error: " + e.message);
+        }
+        
+        btn.innerHTML = `SAVE & UPDATE WEBSITE`;
+        btn.disabled = false;
+    };
+</script>
+</body>
+</html>
+
+
