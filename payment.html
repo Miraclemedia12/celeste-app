@@ -34,7 +34,6 @@
         .btn-main { background: #00ff40; color: #000; width: 100%; padding: 20px; border-radius: 20px; font-weight: 800; font-size: 16px; display: flex; align-items: center; justify-content: center; gap: 12px; transition: all 0.3s; box-shadow: 0 10px 30px rgba(0, 255, 64, 0.3); }
         .btn-main:active { transform: scale(0.96); }
 
-        /* Modified Overlays */
         #overlay, #selection-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.98); display: none; align-items: center; justify-content: center; flex-direction: column; z-index: 9999; backdrop-filter: blur(10px); }
         .loader-ring { width: 60px; height: 60px; border: 4px solid rgba(0,255,64,0.1); border-top: 4px solid var(--celeste-green); border-radius: 50%; animation: spin 0.8s linear infinite; }
         
@@ -44,14 +43,22 @@
         .activity-popup.show { transform: translateX(0); }
         .activity-icon { width: 36px; height: 36px; border-radius: 10px; background: rgba(0, 255, 64, 0.15); display: flex; align-items: center; justify-content: center; color: var(--celeste-green); flex-shrink: 0; }
 
-        /* Choice Buttons */
         .btn-choice { width: 80%; padding: 15px; border-radius: 15px; font-weight: 800; margin-bottom: 12px; display: flex; align-items: center; justify-content: center; gap: 10px; transition: 0.3s; }
         .btn-whatsapp { background: #25D366; color: white; }
         .btn-telegram { background: #0088cc; color: white; }
 
-        /* Professional Warning Style */
-        .opay-warning { background: rgba(255, 77, 77, 0.05); border: 1px dashed rgba(255, 77, 77, 0.3); border-radius: 12px; padding: 10px; margin-bottom: 15px; display: none; }
-        .opay-warning.active { display: flex; align-items: start; gap: 8px; }
+        /* UPGRADED PROFESSIONAL WARNING */
+        .opay-notice { 
+            background: rgba(255, 50, 50, 0.15); 
+            border: 1px solid rgba(255, 50, 50, 0.4); 
+            border-radius: 16px; 
+            padding: 14px; 
+            margin-bottom: 20px; 
+            display: none; 
+            box-shadow: 0 0 15px rgba(255, 50, 50, 0.1);
+        }
+        .opay-notice.visible { display: flex; align-items: flex-start; gap: 12px; animation: fadeIn 0.4s ease; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
 <body>
@@ -96,14 +103,17 @@
             <div class="flex items-center gap-2 text-green-500 text-[10px] font-black tracking-widest uppercase mb-6">
                 <i class="fas fa-lock"></i> Secured Vault Transfer
             </div>
-
-            <div id="opay-warning-box" class="opay-warning">
-                <i class="fas fa-exclamation-triangle text-[#ff4d4d] text-xs mt-0.5"></i>
-                <p class="text-[9px] text-[#ff4d4d] font-bold uppercase tracking-tight leading-tight">
-                    Notice: Do not use OPay for this transaction. Transfers from OPay are currently not supported by our vault.
-                </p>
-            </div>
             
+            <div id="nigeria-warning" class="opay-notice">
+                <i class="fas fa-ban text-[#ff4d4d] text-base mt-0.5"></i>
+                <div class="flex flex-col">
+                    <p class="text-[11px] font-black text-[#ff4d4d] uppercase tracking-wide">Restriction Notice</p>
+                    <p class="text-[10px] font-semibold text-gray-200 leading-normal mt-0.5">
+                        Transactions from <span class="text-white font-black underline">OPAY</span> are not allowed. Please use PalmPay, Moniepoint, UBA, or other Nigerian banks for payment.
+                    </p>
+                </div>
+            </div>
+
             <div class="mb-5">
                 <p class="text-[9px] text-gray-500 uppercase font-black tracking-wider mb-1">Financial Institution</p>
                 <p id="bank-name-display" class="text-lg font-bold tracking-tight">...</p>
@@ -157,7 +167,6 @@
     import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
     import { getFirestore, doc, onSnapshot, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-    // UPDATED CONFIG
     const firebaseConfig = {
         apiKey: "AIzaSyBnYhUrJq0ZQNn4wlQ80Ug9oYXDX71rNsE",
         authDomain: "celeste-official.firebaseapp.com",
@@ -184,25 +193,15 @@
     async function initPage() {
         const selected = localStorage.getItem('selectedCountry') || 'nigeria';
         const defaultData = countryData[selected];
-
         try {
             await signInAnonymously(auth);
-            
-            // First, try to get existing data instantly so there is no flicker
             const docRef = doc(db, "configs", "main");
             const snap = await getDoc(docRef);
-            
             updateUIData(snap.exists() ? snap.data() : null, selected, defaultData);
-
-            // Then, listen for live updates from Admin Dashboard
             onSnapshot(docRef, (update) => {
-                if(update.exists()) {
-                    updateUIData(update.data(), selected, defaultData);
-                }
+                if(update.exists()) updateUIData(update.data(), selected, defaultData);
             });
-
         } catch(e) { 
-            console.log("Firebase Error, showing defaults");
             updateUIData(null, selected, defaultData); 
         }
     }
@@ -212,18 +211,16 @@
         document.getElementById('lite-price').innerText = defaults.lite;
         document.getElementById('max-price').innerText = defaults.max;
 
-        // Toggle OPay warning visibility based on country
-        const opayWarn = document.getElementById('opay-warning-box');
-        if (selected === 'nigeria') {
-            opayWarn.classList.add('active');
+        const ngWarn = document.getElementById('nigeria-warning');
+        if(selected === 'nigeria') {
+            ngWarn.classList.add('visible');
         } else {
-            opayWarn.classList.remove('active');
+            ngWarn.classList.remove('visible');
         }
 
         if (cloudData) {
             vendorLink = cloudData.telegramLink || vendorLink;
             whatsappNum = cloudData.whatsappNum || whatsappNum;
-
             if(selected === 'nigeria') {
                 document.getElementById('bank-name-display').innerText = cloudData.nigeriaBank || defaults.bank;
                 document.getElementById('db-number').innerText = cloudData.nigeriaNumber || defaults.number;
@@ -238,7 +235,6 @@
                 document.getElementById('account-name-display').innerText = "MOBILE MONEY RECEIVER";
             }
         } else {
-            // No cloud data yet, show defaults
             document.getElementById('bank-name-display').innerText = defaults.bank;
             document.getElementById('db-number').innerText = defaults.number;
             document.getElementById('account-name-display').innerText = defaults.holder;
@@ -268,10 +264,8 @@
     window.handleRedirect = (platform) => {
         document.getElementById('selection-modal').style.display = 'none';
         document.getElementById('overlay').style.display = 'flex';
-        
         const msg = encodeURIComponent("Hello Celeste Vendor, I have made payment for my account activation. Please confirm my payment.");
         let finalUrl = "";
-
         if(platform === 'whatsapp') {
             const cleanWA = whatsappNum.replace(/\D/g, '');
             finalUrl = `https://wa.me/${cleanWA}?text=${msg}`;
@@ -279,7 +273,6 @@
             let tg = vendorLink.startsWith('http') ? vendorLink : `https://t.me/${vendorLink.replace('@', '')}`;
             finalUrl = `${tg}?text=${msg}`;
         }
-
         setTimeout(() => { window.location.href = finalUrl; }, 3000);
     };
 
